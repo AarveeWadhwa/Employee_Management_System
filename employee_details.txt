@@ -1,0 +1,29 @@
+
+Name: ee
+ID: 345
+Designation: CEO
+Type: Permanent
+Salary: 3.45566e+08
+Performance Review: Rating: 2 | Feedback: low
+-------------------------------
+Name: th
+ID: 675
+Designation: Manager
+Type: Visiting
+Salary: 405
+Performance Review: Rating: 2 | Feedback: ok
+-------------------------------
+Name: rv
+ID: 90
+Designation: Manager
+Type: Permanent
+Salary: 456788
+Performance Review: Rating: 2 | Feedback: yes
+-------------------------------
+Name: yu
+ID: 234
+Designation: CEO
+Type: Permanent
+Salary: 345
+Performance Review: Rating: 3 | Feedback: no
+-------------------------------
