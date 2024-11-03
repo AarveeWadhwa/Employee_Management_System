@@ -2,7 +2,9 @@
 #include <vector>
 #include <iomanip> // For setw() to format output
 #include <string>
-#include <fstream> // For file handling
+#include <fstream>
+#include <sstream>
+
 using namespace std;
 
 // User Authentication class
@@ -11,9 +13,16 @@ public:
     string username;
     string password;
     string role; // "Admin" or "Employee"
+    int id;
 
-    User(string uname, string pwd, string r) : username(uname), password(pwd), role(r) {}
+    User(string uname, string pwd, string r) : username(uname), password(pwd), role(r), id(-1) {}
+
+    // Constructor for Employee
+    User(string uname, string pwd, string r, int empId) : username(uname), password(pwd), role(r), id(empId) {}
 };
+
+User * currentUser  = nullptr;
+vector<User> users;
 
 // Performance Review class
 class PerformanceReview {
@@ -34,7 +43,7 @@ public:
         cout << "Rating: " << rating << " | Feedback: " << feedback << endl;
     }
 
-    string getReview() const {
+    string toString() const {
         return "Rating: " + to_string(rating) + " | Feedback: " + feedback;
     }
 };
@@ -45,7 +54,7 @@ protected:
     string eName;
     int eID;
     string eDesignation;
-    double finalSalary;
+    double finalSalary; // Keep this as protected
     string eType;  // Permanent or Visiting
     double increment;
     string status;
@@ -64,16 +73,14 @@ public:
         review.displayReview(); // Display performance review
     }
 
+    virtual string toFileString() const {
+        return "Name: " + eName + "\nID: " + to_string(eID) + "\nDesignation: " + eDesignation + 
+               "\nType: " + eType + "\nSalary: " + to_string(finalSalary) + 
+               "\nStatus: " + status + "\nPerformance Review: " + review.toString() + "\n";
+    }
+
     int getID() {
         return eID;
-    }
-
-    double getSalary() {
-        return finalSalary;
-    }
-
-    string getPerformanceReview() {
-        return review.getReview();
     }
 
     void setName(string name) {
@@ -88,22 +95,18 @@ public:
         eType = type;
     }
 
-    void addPerformanceReview() {
-        review.inputReview();
+    // Setter for finalSalary
+    void setFinalSalary(double salary) {
+        finalSalary = salary;
     }
 
-    // New function to edit salary with bonus or deduction
-    void editSalary() {
-        double bonusOrDeduction;
-        cout << "Enter bonus or deduction amount (positive for bonus, negative for deduction): ";
-        cin >> bonusOrDeduction;
-        finalSalary += bonusOrDeduction;
+    // Getter for finalSalary
+    double getFinalSalary() const {
+        return finalSalary;
+    }
 
-        if (bonusOrDeduction > 0) {
-            cout << "Bonus of " << bonusOrDeduction << " added to salary. New salary: " << finalSalary << endl;
-        } else {
-            cout << "Deduction of " << abs(bonusOrDeduction) << " applied. New salary: " << finalSalary << endl;
-        }
+    void addPerformanceReview() {
+        review.inputReview();
     }
 };
 
@@ -115,7 +118,6 @@ public:
 
     void calculateSalary() override {
         double basicSalary;
-
         cout << "Enter employee's current salary: ";
         cin >> finalSalary;
 
@@ -141,8 +143,7 @@ public:
         } else if (yearsWorked >= 2) {
             increment = 5;
         } else {
-            increment = 0;
-        }
+            increment = 0 ;       }
 
         double newSalary = basicSalary + (basicSalary * increment / 100);
         cout << "Calculated Salary after " << increment << "% increment: " << newSalary << endl;
@@ -185,90 +186,7 @@ private:
     vector<Employee*> employees;
 
 public:
-    void addEmployee() {
-    string name, designation, type;
-    int id, yearsWorked;
-    double currentSalary;
-
-    cout << "Enter employee name: ";
-    cin >> name;
-    cout << "Enter employee ID: ";
-    cin >> id;
-
-    // Check for duplicate ID
-    for (size_t i = 0; i < employees.size(); i++) {
-        if (employees[i]->getID() == id) {
-            cout << "Error: Duplicate ID!" << endl;
-            return;
-        }
-    }
-
-    cout << "Enter employee designation (CEO/Manager/Labour): ";
-    cin >> designation;
-    cout << "Enter employee type (Permanent/Visiting): ";
-    cin >> type;
-
-    if (type == "Permanent") {
-        cout << "Enter years worked: ";
-        cin >> yearsWorked;
-        cout << "Enter current salary: ";
-        cin >> currentSalary;
-
-        // Create Permanent employee
-        PermanentEmp* newEmp = new PermanentEmp(name, id, designation);
-        employees.push_back(newEmp);
-
-        // Calculate new salary and determine status
-        newEmp->calculateSalary(yearsWorked); // Assuming you have modified calculateSalary to accept yearsWorked
-        double newSalary = newEmp->getSalary();
-
-        // Determine status
-        string status = (currentSalary < newSalary) ? "Discontinued" : "Continued";
-
-        // Store employee details in the file
-        ofstream outFile("employee_details.txt", ios::app); // Append mode to keep previous records
-        if (outFile.is_open()) {
-            outFile << "Name: " << name << "\n";
-            outFile << "ID: " << id << "\n";
-            outFile << "Designation: " << designation << "\n";
-            outFile << "Type: " << type << "\n";
-            outFile << "Salary: " << newSalary << "\n";
-            outFile << "Status: " << status << "\n"; // Store the status
-            outFile << "Performance Review: " << newEmp->getPerformanceReview() << "\n";
-            outFile << "-------------------------------\n";
-            outFile.close();
-            cout << "Employee record added and saved successfully!" << endl;
-        } else {
-            cout << "Error: Unable to open file!" << endl;
-        }
-    } else if (type == "Visiting") {
-        employees.push_back(new VisitingEmp(name, id, designation));
-
-        // Calculate salary and add performance review
-        employees.back()->calculateSalary();
-        employees.back()->addPerformanceReview();
-
-        // Store employee details in the file
-        ofstream outFile("employee_details.txt", ios::app); // Append mode to keep previous records
-        if (outFile.is_open()) {
-            outFile << "Name: " << name << "\n";
-            outFile << "ID: " << id << "\n";
-            outFile << "Designation: " << designation << "\n";
-            outFile << "Type: " << type << "\n";
-            outFile << "Salary: " << employees.back()->getSalary() << "\n";
-            outFile << "Status: N/A\n"; // No status for visiting employees
-            outFile << "Performance Review: " << employees.back()->getPerformanceReview() << "\n";
-            outFile << "-------------------------------\n";
-            outFile.close();
-            cout << "Employee record added and saved successfully!" << endl;
-        } else {
-            cout << "Error: Unable to open file!" << endl;
-        }
-    } else {
-        cout << "Invalid employee type!" << endl;
-    }
-}
-    void loadEmployeesFromFile() {
+   void loadEmployeesFromFile() {
     ifstream inFile("employee_details.txt");
     string line;
     bool headerPrinted = false;
@@ -277,39 +195,63 @@ public:
         while (getline(inFile, line)) {
             // If a new record starts, print the header (only once)
             if (!headerPrinted) {
-                cout << left << setw(20) << "Name" << setw(10) << "ID"
-                     << setw(20) << "Designation" << setw(15) << "Salary"
-                     << setw(10) << "Increment" << setw(40) << "Status" << setw(10) << "Type" << endl;
-                cout << "------------------------------------------------------------------------------------------------------------------------" << endl;
+                cout << left << setw(20) << "Name" 
+                     << setw(10) << "ID"
+                     << setw(20) << "Designation" 
+                     << setw(15) << "Salary"
+                     << setw(15) << "Increment" 
+                     << setw(30) << "Status" 
+                     << setw(15) << "Type" 
+                     << setw(30) << "Performance Review" << endl;
+
+                // Print a longer separator line
+                cout << string(20, '-') << " "
+                     << string(10, '-') << " "
+                     << string(20, '-') << " "
+                     << string(15, '-') << " "
+                     << string(15, '-') << " "
+                     << string(30, '-') << " "
+                     << string(15, '-') << " "
+                     << string(30, '-') << endl;
+
                 headerPrinted = true;
             }
-
+            
             // Extract and format employee details from the file
             if (line.find("Name:") != string::npos) {
                 string name = line.substr(6);
-                getline(inFile, line);  // Read next line (ID)
-                string id = line.substr(4);
+                getline(inFile, line); // Read next line (ID)
+                int id = stoi(line.substr(4));
                 getline(inFile, line);  // Read next line (Designation)
                 string designation = line.substr(13);
                 getline(inFile, line);  // Read next line (Type)
                 string type = line.substr(6);
                 getline(inFile, line);  // Read next line (Salary)
-                string salary = line.substr(8);
-                getline(inFile, line);  // Read next line (Increment)
-                string increment = line.substr(10);
+                double salary = stod(line.substr(8));
+                getline(inFile, line);  // Read next line (Status)
+                string status = line.substr(8); // Assuming status starts at index 8
                 getline(inFile, line);  // Read next line (Performance Review)
-                string review = line.substr(19);  // Assuming review is also needed but not printed
-                
-                // Read the next line for Status
-                getline(inFile, line);  // Read Status
-                string status = line.substr(8); // Adjusting index to match your status format
-                
-                // Print the formatted employee record
-                cout << left << setw(20) << name << setw(10) << id
-                     << setw(20) << designation << setw(15) << salary
-                     << setw(10) << increment << setw(40) << status << setw(10) << type << endl;
+                string review = line.substr(19); // Assuming review starts at index 19
 
-                getline(inFile, line); // Skip the separator line
+                // Print the formatted employee record without vertical lines
+                cout << left << setw(20) << name 
+                     << setw(10) << id
+                     << setw(20) << designation 
+                     << setw(15) << salary
+                     << setw(15) << "N/A" // Increment is not stored in the file, so we can put "N/A"
+                     << setw(30) << status 
+                     << setw(15) << type 
+                     << setw(30) << review << endl;
+
+                // Print a separator line between records
+                cout << string(20, '-') << " "
+                     << string(10, '-') << " "
+                     << string(20, '-') << " "
+                     << string(15, '-') << " "
+                     << string(15, '-') << " "
+                     << string(30, '-') << " "
+                     << string(15, '-') << " "
+                     << string(30, '-') << endl;
             }
         }
         inFile.close();
@@ -317,257 +259,295 @@ public:
         cout << "Error: Unable to open employee_details.txt!" << endl;
     }
 }
-    
-    void deleteEmployee(int id) {
-        ifstream inFile("employee_details.txt");
-        ofstream tempFile("temp.txt");
-        string line;
-        bool found = false;
+    void addEmployee() {
+        string name, designation, type;
+        int id;
 
-        if (inFile.is_open() && tempFile.is_open()) {
-            while (getline(inFile, line)) {
-                if (line.find("ID: " + to_string(id)) != string::npos) {
-                    found = true; // Found employee to delete
-                    // Skip the next lines to remove the employee
-                    for (int i = 0; i < 5; ++i) {
-                        getline(inFile, line); // Skip the next lines of this employee
-                    }
-                } else {
-                    // Copy unchanged lines to the temp file
-                    tempFile << line << endl;
-                }
+        cout << "Enter employee name: ";
+        cin >> name;
+        cout << "Enter employee ID: ";
+        cin >> id;
+
+        // Check for duplicate ID
+        for (const auto& employee : employees) {
+            if (employee->getID() == id) {
+                cout << "Error: Duplicate ID! An employee with ID " << id << " already exists." << endl;
+                return; // Exit the function if a duplicate ID is found
             }
-            inFile.close();
-            tempFile.close();
+        }
 
-            // Replace old file with updated file
-            remove("employee_details.txt");
-            rename("temp.txt", "employee_details.txt");
+        cout << "Enter employee designation (CEO/Manager/Labour): ";
+        cin >> designation;
+        cout << "Enter employee type (Permanent/Visiting): ";
+        cin >> type;
 
-            if (found) {
-                cout << "Employee record deleted successfully!" << endl;
-            } else {
-                cout << "Error: Employee ID not found!" << endl;
-            }
+        Employee* newEmployee;
+        if (type == "Permanent") {
+            newEmployee = new PermanentEmp(name, id, designation);
+        } else if (type == "Visiting") {
+            newEmployee = new VisitingEmp(name, id, designation);
         } else {
-            cout << "Error: Unable to open file!" << endl;
+            cout << "Invalid employee type!" << endl;
+            return; // Exit if the type is invalid
+        }
+
+        newEmployee->calculateSalary();
+        newEmployee->addPerformanceReview(); // Adding performance review input after salary calculation
+
+        employees.push_back(newEmployee);
+
+        // Write the new employee to the file
+        ofstream outFile("employee_details.txt", ios::app);
+        if (outFile.is_open()) {
+            outFile << newEmployee->toFileString() << endl; // Assuming toFileString() formats the employee data correctly
+            outFile.close();
+        } else {
+            cout << "Error: Unable to open employee_details.txt for writing!" << endl;
         }
     }
 
-    void searchEmployee(int id) {ifstream inFile("employee_details.txt"); // Open the file for reading
-    if (!inFile) {
-        cout << "Error: Unable to open file!" << endl;
-        return;
-    }
-
-    string line;
-    bool found = false;
-
-    // Read the file line by line
-    while (getline(inFile, line) && !found) {
-        // Check if the line contains the ID
-        if (line.find("ID: " + to_string(id)) != string::npos) {
-            found = true; // Employee ID found
-            // Display the employee information
-            do {
-                cout << line << endl;
-            } while (getline(inFile, line) && line != "-------------------------------"); // Continue displaying until separator
-            cout << line << endl; // To display the separator
-        }
-    }
-
-    if (!found) {
-        cout << "Employee with ID " << id << " not found!" << endl;
-    }
-
-    inFile.close(); // Close the file
-}
-
-    void editEmployee(int id) {
+    void deleteEmployee(int id) {
         for (size_t i = 0; i < employees.size(); i++) {
             if (employees[i]->getID() == id) {
-                string newName, newDesignation, newType;
-                cout << "Editing Employee with ID: " << id << endl;
+                cout << "Employee with ID " << id << " deleted!" << endl;
+                delete employees[i];
+                employees.erase(employees.begin() + i);
 
-                cout << "Enter new name: ";
-                cin >> newName;
-                employees[i]->setName(newName);
+                // Rewrite the file without the deleted employee
+                ofstream outFile("employee_details.txt");
+                if (outFile.is_open()) {
+                    for (const auto& employee : employees) {
+                        outFile << employee->toFileString() << endl;
+                    }
+                    outFile.close();
+                } else {
+                    cout << "Error: Unable to open employee_details.txt for writing!" << endl;
+                }
 
-                cout << "Enter new designation (CEO/Manager/Labour): ";
-                cin >> newDesignation;
-                employees[i]->setDesignation(newDesignation);
-
-                cout << "Enter new type (Permanent/Visiting): ";
-                cin >> newType;
-                employees[i]->setType(newType);
-
-                cout << "Employee details updated!" << endl;
-                employees[i]->displayInfo();  // Display updated info
                 return;
             }
         }
         cout << "Employee with ID " << id << " not found!" << endl;
     }
 
-    void editEmployeeSalary(int id) {
-        ifstream inFile("employee_details.txt");
-        ofstream tempFile("temp.txt");
+    void searchEmployee(int id) {
+        ifstream file("employee_details.txt");
+        if (!file) {
+            cerr << "Error opening employee details file!" << endl;
+            return;
+        }
+
         string line;
         bool found = false;
 
-        if (inFile.is_open() && tempFile.is_open()) {
-            while (getline(inFile, line)) {
-                if (line.find("ID: " + to_string(id)) != string::npos) {
-                    found = true; // Found employee to edit
-                    // Skip the next lines to remove the employee record
-                    cout << "Editing Employee ID: " << id << endl;
+        // Loop through each line in the file
+        while (getline(file, line)) {
+            if (line.find("Name:") != string::npos) {
+                string name = line.substr(6);
+                getline(file, line); // Read ID
+                int empID = stoi(line.substr(4));
+                getline(file, line); // Read Designation
+                string designation = line.substr(13);
+                getline(file, line); // Read Type
+                string type = line.substr(6);
+                getline(file, line); // Read Salary
+                double salary = stod(line.substr(8));
+                getline(file, line); // Read Status
+                string status = line.substr(8);
+                getline(file, line); // Read Performance Review
+                string review = line.substr(19);
 
-                    // Get new values from the user
-                    string newName, newDesignation;
-                    cout << "Enter new name: ";
-                    cin >> newName;
-                    cout << "Enter new designation: ";
-                    cin >> newDesignation;
-
-                    // Update details
-                    line = "Name: " + newName;
-                    tempFile << line << endl;
-                    tempFile << "ID: " << id << endl;
-                    tempFile << "Designation: " << newDesignation << endl;
-
-                    // Copy the remaining employee info
-                    for (int i = 0; i < 4; ++i) {
-                        getline(inFile, line);
-                        tempFile << line << endl; // Copy the remaining employee details
+                if (empID == id) {
+                    if (currentUser ->role == "Admin" || (currentUser ->role == "Employee" && empID == currentUser ->id)) {
+                        cout << "Employee found:\n";
+                        cout << "Name: " << name << "\nID: " << empID
+                             << "\nDesignation: " << designation << "\nType: " << type
+                             << "\nSalary: " << salary << "\nStatus: " << status
+                             << "\nReview: " << review << endl;
+                        found = true;
+                    } else {
+                        cout << "You are not authorized to view this employee's information." << endl;
+                        found = true;
                     }
-
-                    cout << "Employee record updated successfully!" << endl;
-                } else {
-                    // Copy unchanged lines to the temp file
-                    tempFile << line << endl;
+                    break; // Exit the loop once the employee is found
                 }
             }
-            inFile.close();
-            tempFile.close();
+        }
 
-            // Replace old file with updated file
-            remove("employee_details.txt");
-            rename("temp.txt", "employee_details.txt");
+        if (!found) {
+            cout << "Employee with ID " << id << " not found!" << endl;
+        }
 
-            if (!found) {
-                cout << "Error: Employee ID not found!" << endl;
+        file.close();
+    }
+
+    void editEmployee(int id) {
+        for (size_t i = 0; i < employees.size(); i++) {
+            if (employees[i]->getID() == id) {
+                string newName, newDesignation, newType;
+                double adjustmentAmount;
+                char adjustmentType;
+
+                cout << "Enter new name: ";
+                cin >> newName;
+                cout << "Enter new designation (CEO/Manager/Labour): ";
+                cin >> newDesignation;
+                cout << "Enter new type (Permanent/Visiting): ";
+                cin >> newType;
+
+                // Update employee details
+                employees[i]->setName(newName);
+                employees[i]->setDesignation(newDesignation);
+                employees[i]->setType(newType);
+
+                // Prompt for salary adjustment
+                cout << "Do you want to (A)dd bonus or (D)educt salary? (A/D): ";
+                cin >> adjustmentType;
+
+                if (adjustmentType == 'A' || adjustmentType == 'a') {
+                    cout << "Enter bonus amount: ";
+                    cin >> adjustmentAmount;
+                    employees[i]->setFinalSalary(employees[i]->getFinalSalary() + adjustmentAmount); // Add bonus
+                                } else if (adjustmentType == 'D' || adjustmentType == 'd') {
+                    cout << "Enter deduction amount: ";
+                    cin >> adjustmentAmount;
+                    employees[i]->setFinalSalary(employees[i]->getFinalSalary() - adjustmentAmount); // Deduct salary
+                } else {
+                    cout << "Invalid option! No changes made to salary." << endl;
+                }
+
+                // Recalculate salary if necessary
+                if (newType == "Permanent") {
+                    employees[i]->calculateSalary(); // This will calculate based on designation
+                }
+
+                employees[i]->addPerformanceReview(); // Prompt for performance review after editing
+
+                // Rewrite the file with the updated employee
+                ofstream outFile("employee_details.txt");
+                if (outFile.is_open()) {
+                    for (const auto& employee : employees) {
+                        outFile << employee->toFileString() << endl;
+                    }
+                    outFile.close();
+                    cout << "Employee record updated successfully!" << endl;
+                } else {
+                    cout << "Error: Unable to open employee_details.txt for writing!" << endl;
+                }
+
+                return; // Exit the function after editing
+            }
+        }
+        cout << "Employee with ID " << id << " not found!" << endl;
+    }
+
+    void displayAllEmployees() {
+        if (currentUser ->role == "Admin") {
+            // Display all employees as before
+            loadEmployeesFromFile();
+            cout << "\n--- In-Memory Employees ---" << endl;
+            for (size_t i = 0; i < employees.size(); i++) {
+                employees[i]->displayInfo();
             }
         } else {
-            cout << "Error: Unable to open file!" << endl;
+            // Display only the logged-in employee's information
+            for (size_t i = 0; i < employees.size(); i++) {
+                if (employees[i]->getID() == currentUser ->id) {
+                    employees[i]->displayInfo();
+                    break;
+                }
+            }
         }
     }
-
-    void displayEmployees(){
-    loadEmployeesFromFile(); // Load and display employees from the file
-
-    // If you want to also display in-memory employees, do that here
-    cout << "\n--- In-Memory Employees ---" << endl;
-    for (size_t i = 0; i < employees.size(); i++) {
-        employees[i]->displayInfo();
-    }
-}
 };
 
-// Main function
+// Function to authenticate users
+User * authenticate() {
+    if(users.empty()){
+        users.push_back(User("admin", "admin123", "Admin"));
+        users.push_back(User("emp1", "emp123", "Employee", 45));
+        users.push_back(User("emp2", "emp234", "Employee", 102));
+    }
+    string uname, pwd;
+    cout << "Enter username: ";
+    cin >> uname;
+    cout << "Enter password: ";
+    cin >> pwd;
+
+    for (User & user : users) {
+        if (user.username == uname && user.password == pwd) {
+            currentUser  = &user;
+            cout << "Login successful! Logged in as " << user.role << endl;
+            return currentUser ;
+        }
+    }
+    cout << "Invalid username or password." << endl;
+    return nullptr;
+}
+
 int main() {
     EmployeeManager manager;
 
+    // Authenticate the user
+    if (authenticate()) {
+        // Check the role of the current user
+        if (currentUser ->role == "Admin") {
+            int choice;
 
-    // Sample Users
-    User admin("admin", "admin123", "Admin");
-    User employee("emp1", "pass123", "Employee");
+            // Admin menu loop
+            do {
+                cout << "\n--- Admin Menu ---" << endl;
+                cout << "1. Add Employee" << endl;
+                cout << "2. Delete Employee" << endl;
+                cout << "3. Search Employee" << endl;
+                cout << "4. Display All Employees" << endl;
+                cout << "5. Edit Employee" << endl; // Added option to edit employee
+                cout << "0. Exit" << endl;
+                cout << "Enter your choice: ";
+                cin >> choice;
 
-    string inputUsername, inputPassword;
-    cout << "Enter username: ";
-    cin >> inputUsername;
-    cout << "Enter password: ";
-    cin >> inputPassword;
+                int id;
+                switch (choice) {
+                    case 1:
+                        manager.addEmployee();
+                        break;
+                    case 2:
+                        cout << "Enter Employee ID to delete: ";
+                        cin >> id;
+                        manager.deleteEmployee(id);
+                        break;
+                    case 3:
+                        cout << "Enter Employee ID to search: ";
+                        cin >> id;
+                        manager.searchEmployee(id);
+                        break;
+                    case 4:
+                        manager.displayAllEmployees();
+                        break;
+                    case 5:
+                        cout << "Enter Employee ID to edit: ";
+                        cin >> id;
+                        manager.editEmployee(id); // Call the edit function
+                        break;
+                    case 0:
+                        cout << "Exiting program." << endl;
+                        break;
+                    default:
+                        cout << "Invalid choice!" << endl;
+                }
+            } while (choice != 0);
 
-    // User authentication
-    if (inputUsername == admin.username && inputPassword == admin.password) {
-        cout << "Welcome Admin!" << endl;
-        int choice;
-        do {
-            cout << "1. Add Employee\n2. Edit Employee\n3. Delete Employee\n4. Search Employee\n5. Edit Employee Salary\n6. Display All Employees\n7. Exit\n";
-            cout << "Enter your choice: ";
-            cin >> choice;
+        } else if (currentUser ->role == "Employee") {
+            int id;
 
-            switch (choice) {
-                case 1:
-                    manager.addEmployee();
-                    break;
-                case 2: {
-                    int id;
-                    cout << "Enter employee ID to edit: ";
-                    cin >> id;
-                    manager.editEmployee(id);
-                    break;
-                }
-                case 3: {
-                    int id;
-                    cout << "Enter employee ID to delete: ";
-                    cin >> id;
-                    manager.deleteEmployee(id);
-                    break;
-                }
-                case 4: {
-                    int id;
-                    cout << "Enter employee ID to search: ";
-                    cin >> id;
-                    manager.searchEmployee(id);
-                    break;
-                }
-                case 5: {
-                    int id;
-                    cout << "Enter employee ID to edit salary: ";
-                    cin >> id;
-                    manager.editEmployeeSalary(id);
-                    break;
-                }
-                case 6:
-                    manager.displayEmployees();
-                    break;
-                case 7:
-                    cout << "Exiting..." << endl;
-                    break;
-                default:
-                    cout << "Invalid choice! Please try again." << endl;
-            }
-        } while (choice != 7);
-    } else if (inputUsername == employee.username && inputPassword == employee.password) {
-        cout << "Welcome Employee!" << endl;
-        int choice;
-        do {
-            cout << "1. Search Employee\n2. Display All Employees\n3. Exit\n";
-            cout << "Enter your choice: ";
-            cin >> choice;
+            // Prompt employee to enter their ID to view their own record
+            cout << "Enter your Employee ID to view your record: ";
+            cin >> id;
 
-            switch (choice) {
-                case 1: {
-                    int id;
-                    cout << "Enter employee ID to search: ";
-                    cin >> id;
-                    manager.searchEmployee(id);
-                    break;
-                }
-                case 2:
-                    manager.displayEmployees();
-                    break;
-                case 3:
-                    cout << "Exiting..." << endl;
-                    break;
-                default:
-                    cout << "Invalid choice! Please try again." << endl;
-            }
-        } while (choice != 3);
-    } else {
-        cout << "Invalid username or password!" << endl;
+            // Search for the employee's record using their ID
+            manager.searchEmployee(id);
+               }
     }
 
-    return 0;
+    return 0; // Exit the program
 }
